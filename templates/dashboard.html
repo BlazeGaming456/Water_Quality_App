@@ -1,0 +1,61 @@
+<!-- accounts/templates/accounts/dashboard.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f2f5;
+      margin: 0;
+      padding: 0;
+    }
+    .navbar {
+      background: #343a40;
+      color: white;
+      padding: 15px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .navbar h1 {
+      margin: 0;
+      font-size: 20px;
+    }
+    .logout-btn {
+      background-color: #dc3545;
+      border: none;
+      color: white;
+      padding: 10px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.3s;
+    }
+    .logout-btn:hover {
+      background-color: #c82333;
+    }
+    .content {
+      padding: 40px;
+      text-align: center;
+    }
+    .content h2 {
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <h1>Welcome to Your Dashboard</h1>
+    <form method="POST" action="{% url 'logout' %}">
+      {% csrf_token %}
+      <button type="submit" class="logout-btn">Logout</button>
+    </form>
+  </div>
+  <div class="content">
+    <h2>Hello, you're logged in!</h2>
+    <p>This is your secure dashboard page.</p>
+  </div>
+</body>
+</html>
