@@ -1,0 +1,5 @@
+<!-- To use the firebase backend:
+
+1. IoT devices should send data to the /accounts/api/save-test/ endpoint
+2. The dashboard will automatically fetch and display the latest data
+3. Test history is available through the /accounts/api/test-history/ endpoint -->

@@ -1,14 +1,22 @@
-import pyrebase
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
 
-config = {
-  'apiKey': "AIzaSyBN8bbOD-WtxvthDQnSnCoOxYrmOYYDwHw",
-  'authDomain': "water-quality-35f40.firebaseapp.com",
-  'databaseURL': "https://water-quality-35f40-default-rtdb.asia-southeast1.firebasedatabase.app/",
-  'projectId': "water-quality-35f40",
-  'storageBucket': "water-quality-35f40.firebasestorage.app",
-  'messagingSenderId': "1076986315358",
-  'appId': "1:1076986315358:web:596c17f6055c193667eacf"
-}
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyDXKCr4hBDgFd2nRAN5sr3qWAqGha34Ml0",
+  authDomain: "water-quality-analy.firebaseapp.com",
+  databaseURL: "https://water-quality-analy-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "water-quality-analy",
+  storageBucket: "water-quality-analy.firebasestorage.app",
+  messagingSenderId: "1081306380918",
+  appId: "1:1081306380918:web:95523a872f7e6b44c3bd57",
+  measurementId: "G-BPB4M3XXVK"
+};
 
-firebase = pyrebase.initialize_app(config)
-auth = firebase.auth()
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);

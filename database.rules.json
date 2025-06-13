@@ -1,0 +1,13 @@
+{
+  "rules": {
+    "tests": {
+      "$user_id": {
+        ".read": "auth != null && $user_id === auth.uid",
+        ".write": "auth != null && $user_id === auth.uid",
+        "$test_id": {
+          ".validate": "newData.hasChildren(['ph', 'temperature', 'tds', 'turbidity', 'chemicals', 'timestamp'])"
+        }
+      }
+    }
+  }
+}

@@ -1,61 +1,702 @@
-<!-- accounts/templates/accounts/dashboard.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard</title>
+  <title>Water Quality Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <style>
+    :root {
+      --safe-color: #28a745;
+      --warning-color: #ffc107;
+      --danger-color: #dc3545;
+      --primary-bg: #f0f7ff;
+      --card-bg: #ffffff;
+      --navbar-bg: #3498db;
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      background: #f0f2f5;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: var(--primary-bg);
       margin: 0;
       padding: 0;
+      color: #333;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
+
     .navbar {
-      background: #343a40;
-      color: white;
-      padding: 15px 30px;
+      background: linear-gradient(135deg, #3498db 0%, #85c1e9 100%);
+      padding: 0;
+      box-shadow: 0 4px 12px rgba(52, 152, 219, 0.2);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .nav-content {
+      max-width: 1200px;
+      margin: 0 auto;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      padding: 20px 40px;
+      position: relative;
     }
+
+    .nav-content::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    }
+
     .navbar h1 {
       margin: 0;
-      font-size: 20px;
-    }
-    .logout-btn {
-      background-color: #dc3545;
-      border: none;
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
       color: white;
-      padding: 10px 16px;
-      border-radius: 6px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+      position: relative;
+      padding-left: 40px;
+    }
+
+    .navbar h1::before {
+      content: '💧';
+      position: absolute;
+      left: 0;
+      font-size: 32px;
+      animation: float 2s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+
+    .logout-btn {
+      background-color: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
       cursor: pointer;
-      font-size: 14px;
-      transition: background-color 0.3s;
+      font-size: 15px;
+      transition: all 0.3s;
+      backdrop-filter: blur(5px);
     }
+
     .logout-btn:hover {
-      background-color: #c82333;
+      background-color: rgba(255,255,255,0.2);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
-    .content {
-      padding: 40px;
+
+    .dashboard-container {
+      max-width: 1200px;
+      margin: 30px auto;
+      padding: 0 20px;
+      flex-grow: 1;
+    }
+
+    .status-card {
+      text-align: center;
+      padding: 40px 20px;
+      margin-bottom: 40px;
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(52, 152, 219, 0.1);
+    }
+
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      font-weight: bold;
+      font-size: 24px;
+      margin: 20px 0;
+      position: relative;
+      transition: all 0.5s;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.4); }
+      70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(40, 167, 69, 0); }
+      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+    }
+
+    .status-indicator.safe { 
+      background: linear-gradient(135deg, #28a745 0%, #34ce57 100%);
+      color: white;
+      animation-name: pulseSafe;
+    }
+
+    .status-indicator.warning { 
+      background: linear-gradient(135deg, #ffc107 0%, #ffcd39 100%);
+      color: black;
+      animation-name: pulseWarning;
+    }
+
+    .status-indicator.danger { 
+      background: linear-gradient(135deg, #dc3545 0%, #e4606d 100%);
+      color: white;
+      animation-name: pulseDanger;
+    }
+
+    @keyframes pulseSafe {
+      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.4); }
+      70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(40, 167, 69, 0); }
+      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+    }
+
+    @keyframes pulseWarning {
+      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4); }
+      70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(255, 193, 7, 0); }
+      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+    }
+
+    @keyframes pulseDanger {
+      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); }
+      70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(220, 53, 69, 0); }
+      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+    }
+
+    .parameters-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 40px;
+      margin: 40px 0;
+      padding: 20px;
+    }
+
+    .parameter-card {
+      background: var(--card-bg);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 10px 20px rgba(52, 152, 219, 0.1);
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .parameter-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--safe-color), var(--warning-color), var(--danger-color));
+    }
+
+    .parameter-card:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 15px 30px rgba(52, 152, 219, 0.15);
+    }
+
+    .parameter-card h3 {
+      margin: 0 0 20px 0;
+      color: #2c3e50;
+      font-size: 22px;
+      text-align: center;
+      position: relative;
+      padding-bottom: 15px;
+    }
+
+    .parameter-card h3::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 50px;
+      height: 2px;
+      background: linear-gradient(90deg, #3498db, #85c1e9);
+    }
+
+    .harmful-elements {
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 4px 12px rgba(52, 152, 219, 0.1);
+      margin-bottom: 40px;
+    }
+
+    .elements-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin-top: 20px;
+    }
+
+    .elements-table th,
+    .elements-table td {
+      padding: 16px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+
+    .elements-table th {
+      background-color: rgba(52, 152, 219, 0.05);
+      font-weight: 600;
+      color: #2c3e50;
+    }
+
+    .elements-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .status-pill {
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .status-pill.safe {
+      background-color: rgba(40, 167, 69, 0.1);
+      color: var(--safe-color);
+    }
+
+    .status-pill.danger {
+      background-color: rgba(220, 53, 69, 0.1);
+      color: var(--danger-color);
+    }
+
+    footer {
+      background: linear-gradient(135deg, #3498db 0%, #85c1e9 100%);
+      color: white;
+      padding: 30px 0;
+      margin-top: auto;
+    }
+
+    .footer-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
       text-align: center;
     }
-    .content h2 {
-      color: #333;
+
+    .footer-content p {
+      margin: 0;
+      font-size: 14px;
+      opacity: 0.8;
+    }
+
+    .generate-btn {
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      padding: 12px 24px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 20px 0;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.3s;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .generate-btn:hover {
+      background-color: #45a049;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    }
+
+    .button-container {
+      text-align: center;
+      margin-top: 20px;
     }
   </style>
 </head>
 <body>
   <div class="navbar">
-    <h1>Welcome to Your Dashboard</h1>
-    <form method="POST" action="{% url 'logout' %}">
-      {% csrf_token %}
-      <button type="submit" class="logout-btn">Logout</button>
-    </form>
+    <div class="nav-content">
+      <h1>Water Quality Dashboard</h1>
+      <form method="POST" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="logout-btn">Logout</button>
+      </form>
+    </div>
   </div>
-  <div class="content">
-    <h2>Hello, you're logged in!</h2>
-    <p>This is your secure dashboard page.</p>
+
+  <div class="dashboard-container">
+    <!-- Water Quality Status Section -->
+    <div class="status-card">
+      <h2>Water Quality Status</h2>
+      <div class="status-indicator safe" id="waterQualityStatus">
+        Water is Safe
+      </div>
+      <p id="statusDescription">All parameters are within acceptable ranges for safe water consumption.</p>
+    </div>
+
+    <div class="button-container">
+      <button id="generateTestData" class="generate-btn">Generate New Test Data</button>
+    </div>
+
+    <!-- Parameters Section -->
+    <div class="parameters-grid">
+      <div class="parameter-card">
+        <h3>pH Level</h3>
+        <canvas id="pHChart"></canvas>
+      </div>
+      <div class="parameter-card">
+        <h3>Temperature</h3>
+        <canvas id="temperatureChart"></canvas>
+      </div>
+      <div class="parameter-card">
+        <h3>Turbidity</h3>
+        <canvas id="turbidityChart"></canvas>
+      </div>
+      <div class="parameter-card">
+        <h3>TDS</h3>
+        <canvas id="tdsChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Harmful Elements Section -->
+    <div class="harmful-elements">
+      <h2>Harmful Elements Analysis</h2>
+      <table class="elements-table">
+        <thead>
+          <tr>
+            <th>Element</th>
+            <th>Present Amount</th>
+            <th>Safe Limit</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="elementsTableBody">
+          <!-- This will be populated by JavaScript -->
+        </tbody>
+      </table>
+    </div>
   </div>
+
+  <footer>
+    <div class="footer-content">
+      <p>&copy; 2024 Water Quality Monitoring System. All rights reserved.</p>
+      <p>Powered by IoT and Machine Learning</p>
+    </div>
+  </footer>
+
+  <script>
+    // Store chart instances so we can update them
+    const charts = {
+      pHChart: null,
+      temperatureChart: null,
+      turbidityChart: null,
+      tdsChart: null
+    };
+
+    // Function to create or update gauge charts
+    function updateGaugeChart(canvasId, value, maxValue, label) {
+      const ctx = document.getElementById(canvasId).getContext('2d');
+      
+      // Create gradient background
+      const gradientGreen = ctx.createLinearGradient(0, 0, 0, 200);
+      gradientGreen.addColorStop(0, 'rgba(40, 167, 69, 0.2)');
+      gradientGreen.addColorStop(1, 'rgba(40, 167, 69, 0.05)');
+      
+      const gradientYellow = ctx.createLinearGradient(0, 0, 0, 200);
+      gradientYellow.addColorStop(0, 'rgba(255, 193, 7, 0.2)');
+      gradientYellow.addColorStop(1, 'rgba(255, 193, 7, 0.05)');
+      
+      const gradientRed = ctx.createLinearGradient(0, 0, 0, 200);
+      gradientRed.addColorStop(0, 'rgba(220, 53, 69, 0.2)');
+      gradientRed.addColorStop(1, 'rgba(220, 53, 69, 0.05)');
+
+      // Destroy existing chart if it exists
+      if (charts[canvasId]) {
+        charts[canvasId].destroy();
+      }
+
+      // Create new chart
+      charts[canvasId] = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          datasets: [{
+            data: [value, maxValue - value],
+            backgroundColor: [
+              value > maxValue * 0.8 ? gradientRed : value > maxValue * 0.6 ? gradientYellow : gradientGreen,
+              'rgba(238, 238, 238, 0.1)'
+            ],
+            borderWidth: 2,
+            borderColor: [
+              value > maxValue * 0.8 ? '#dc3545' : value > maxValue * 0.6 ? '#ffc107' : '#28a745',
+              '#eee'
+            ]
+          }]
+        },
+        options: {
+          circumference: 180,
+          rotation: -90,
+          cutout: '80%',
+          plugins: {
+            tooltip: { 
+              enabled: true,
+              callbacks: {
+                label: function(context) {
+                  return `${label}: ${value.toFixed(2)}`;
+                }
+              }
+            },
+            legend: { display: false }
+          },
+          maintainAspectRatio: true
+        }
+      });
+    }
+
+    // Function to generate random test data
+    function generateTestData() {
+      const chemicals = [
+        { name: "Lead", safe: 0.015 },
+        { name: "Copper", safe: 1.3 },
+        { name: "Nitrate", safe: 10 },
+        { name: "Arsenic", safe: 0.01 },
+        { name: "Mercury", safe: 0.002 }
+      ];
+
+      // Generate random values for chemicals
+      const chemicalData = chemicals.map(chem => ({
+        name: chem.name,
+        present: Math.random() * chem.safe * 1.5, // Sometimes exceeds limit
+        safe: chem.safe
+      }));
+
+      const testData = {
+        ph: (Math.random() * 4) + 6, // Between 6-10
+        temperature: (Math.random() * 30) + 10, // Between 10-40°C
+        tds: Math.random() * 1200, // Up to 1200 mg/L
+        turbidity: Math.random() * 5, // Up to 5 NTU
+        chemicals: chemicalData,
+        timestamp: new Date().toISOString()
+      };
+
+      return testData;
+    }
+
+    // Function to update elements table
+    function updateElementsTable(chemicals) {
+      const tableBody = document.getElementById('elementsTableBody');
+      tableBody.innerHTML = '';
+      
+      chemicals.forEach(chemical => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${chemical.name}</td>
+          <td>${chemical.present.toFixed(4)} mg/L</td>
+          <td>${chemical.safe} mg/L</td>
+          <td>
+            <span class="status-pill ${chemical.present <= chemical.safe ? 'safe' : 'danger'}">
+              ${chemical.present <= chemical.safe ? 'Safe' : 'Exceeded'}
+            </span>
+          </td>
+        `;
+        tableBody.appendChild(row);
+      });
+    }
+
+    // Function to update status indicator
+    function updateStatusIndicator(testData) {
+      const statusIndicator = document.getElementById('waterQualityStatus');
+      const statusDescription = document.getElementById('statusDescription');
+      
+      // Simple logic to determine water quality status
+      const isSafe = testData.ph >= 6.5 && testData.ph <= 8.5 && 
+                    testData.temperature <= 30 &&
+                    testData.turbidity <= 1 &&
+                    testData.tds <= 500 &&
+                    testData.chemicals.every(c => c.present <= c.safe);
+      
+      const isWarning = (testData.ph >= 6.0 && testData.ph < 6.5) || 
+                       (testData.ph > 8.5 && testData.ph <= 9.0) ||
+                       (testData.temperature > 30 && testData.temperature <= 35) ||
+                       (testData.turbidity > 1 && testData.turbidity <= 2) ||
+                       (testData.tds > 500 && testData.tds <= 800) ||
+                       testData.chemicals.some(c => c.present > c.safe * 0.8 && c.present <= c.safe);
+      
+      if (isSafe) {
+        statusIndicator.className = 'status-indicator safe';
+        statusIndicator.textContent = 'Water is Safe';
+        statusDescription.textContent = 'All parameters are within acceptable ranges for safe water consumption.';
+      } else if (isWarning) {
+        statusIndicator.className = 'status-indicator warning';
+        statusIndicator.textContent = 'Caution Needed';
+        statusDescription.textContent = 'Some parameters are approaching unsafe levels. Consider testing again soon.';
+      } else {
+        statusIndicator.className = 'status-indicator danger';
+        statusIndicator.textContent = 'Water is Unsafe';
+        statusDescription.textContent = 'Some parameters exceed safe limits. Do not consume without treatment.';
+      }
+    }
+
+    // Function to create or update gauge charts with values displayed
+// Function to create or update gauge charts with beautiful value indicators
+function updateGaugeChart(canvasId, value, maxValue, label, unit) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  
+  // Create gradient background
+  const gradientGreen = ctx.createLinearGradient(0, 0, 0, 200);
+  gradientGreen.addColorStop(0, 'rgba(40, 167, 69, 0.2)');
+  gradientGreen.addColorStop(1, 'rgba(40, 167, 69, 0.05)');
+  
+  const gradientYellow = ctx.createLinearGradient(0, 0, 0, 200);
+  gradientYellow.addColorStop(0, 'rgba(255, 193, 7, 0.2)');
+  gradientYellow.addColorStop(1, 'rgba(255, 193, 7, 0.05)');
+  
+  const gradientRed = ctx.createLinearGradient(0, 0, 0, 200);
+  gradientRed.addColorStop(0, 'rgba(220, 53, 69, 0.2)');
+  gradientRed.addColorStop(1, 'rgba(220, 53, 69, 0.05)');
+
+  // Destroy existing chart if it exists
+  if (charts[canvasId]) {
+    charts[canvasId].destroy();
+  }
+
+  // Create new chart
+  charts[canvasId] = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      datasets: [{
+        data: [value, maxValue - value],
+        backgroundColor: [
+          value > maxValue * 0.8 ? gradientRed : value > maxValue * 0.6 ? gradientYellow : gradientGreen,
+          'rgba(238, 238, 238, 0.1)'
+        ],
+        borderWidth: 2,
+        borderColor: [
+          value > maxValue * 0.8 ? '#dc3545' : value > maxValue * 0.6 ? '#ffc107' : '#28a745',
+          '#eee'
+        ]
+      }]
+    },
+    options: {
+      circumference: 180,
+      rotation: -90,
+      cutout: '80%',
+      plugins: {
+        tooltip: { 
+          enabled: true,
+          callbacks: {
+            label: function(context) {
+              return `${label}: ${value.toFixed(2)}${unit}`;
+            }
+          }
+        },
+        legend: { display: false },
+        // Custom center text configuration
+        centerText: {
+          value: value.toFixed(2),
+          unit: unit,
+          maxValue: maxValue,
+          color: value > maxValue * 0.8 ? '#dc3545' : value > maxValue * 0.6 ? '#ffc107' : '#28a745',
+          label: label
+        }
+      },
+      maintainAspectRatio: true
+    },
+    // Custom plugin for beautiful center text
+    plugins: [{
+      id: 'centerText',
+      beforeDraw: function(chart) {
+        if (chart.config.options.plugins.centerText) {
+          const width = chart.width,
+                height = chart.height,
+                ctx = chart.ctx;
+          
+          ctx.restore();
+          
+          // Get the center text configuration
+          const config = chart.config.options.plugins.centerText;
+          const centerX = width / 2;
+          const centerY = height / 2;
+          
+          // Draw the current value (large and bold)
+          ctx.font = `bold ${Math.min(height / 6, 36)}px 'Segoe UI', Arial, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = config.color;
+          
+          // Main value text
+          ctx.fillText(config.value, centerX, centerY - 15);
+          
+          // Draw the unit (smaller, same color)
+          ctx.font = `${Math.min(height / 10, 18)}px 'Segoe UI', Arial, sans-serif`;
+          ctx.fillText(config.unit, centerX, centerY + 5);
+          
+          // Draw the max value indicator (as part of the scale)
+          ctx.font = `${Math.min(height / 14, 14)}px 'Segoe UI', Arial, sans-serif`;
+          ctx.fillStyle = '#666';
+          
+          // Create a subtle background for the max value indicator
+          ctx.beginPath();
+          ctx.roundRect(centerX - 50, centerY + 30, 100, 24, 12);
+          ctx.fillStyle = 'rgba(240, 240, 240, 0.8)';
+          ctx.fill();
+          
+          // Draw the max value text
+          ctx.fillStyle = '#555';
+          ctx.fillText(`Max: ${config.maxValue}${config.unit}`, centerX, centerY + 45);
+          
+          // Draw the parameter name (subtle, at the bottom)
+          ctx.font = `600 ${Math.min(height / 16, 12)}px 'Segoe UI', Arial, sans-serif`;
+          ctx.fillStyle = '#2c3e50';
+          ctx.fillText(config.label, centerX, centerY + 70);
+          
+          ctx.save();
+        }
+      }
+    }]
+  });
+}
+
+// Update the displayTestData function to include units
+function displayTestData(testData) {
+  // Update charts with units
+  updateGaugeChart('pHChart', testData.ph, 14, 'pH Level', '');
+  updateGaugeChart('temperatureChart', testData.temperature, 50, 'Temperature', '°C');
+  updateGaugeChart('turbidityChart', testData.turbidity, 5, 'Turbidity', ' NTU');
+  updateGaugeChart('tdsChart', testData.tds, 1000, 'Total Dissolved Solids', ' mg/L');
+  
+  // Update table and status
+  updateElementsTable(testData.chemicals);
+  updateStatusIndicator(testData);
+  
+  console.log("Generated test data:", testData);
+}
+
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+      // Display initial test data
+      const initialData = generateTestData();
+      displayTestData(initialData);
+      
+      // Add button event listener
+      document.getElementById('generateTestData').addEventListener('click', function() {
+        const newData = generateTestData();
+        displayTestData(newData);
+        
+        // Show a brief animation to indicate update
+        this.classList.add('clicked');
+        setTimeout(() => {
+          this.classList.remove('clicked');
+        }, 300);
+      });
+    });
+  </script>
 </body>
 </html>
